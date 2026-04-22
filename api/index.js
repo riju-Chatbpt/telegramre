@@ -412,6 +412,8 @@ app.get('/admin', (req, res) => {
     res.send(html);
 });
 
+
+
 // ========== ADMIN DASHBOARD ==========
 app.get('/admin/dashboard', (req, res) => {
     const html = `<!DOCTYPE html>
@@ -864,6 +866,424 @@ app.get('/admin/dashboard', (req, res) => {
     res.send(html);
 });
 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 BRONX ADMIN | DASHBOARD</title>
+    <style>
+        /* ========== SAME STYLES AS BEFORE ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0033 50%, #0a0a0a 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            background: #1a0033;
+            border: 3px solid #ff00ff;
+            border-radius: 20px;
+            padding: 25px 30px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 50px #ff00ff33;
+        }
+        .header h1 { color: #00ff41; font-size: 32px; text-shadow: 0 0 30px #00ff41; }
+        .btn {
+            padding: 12px 25px; border-radius: 12px; font-weight: bold; cursor: pointer;
+            transition: all 0.3s; font-family: 'Courier New', monospace; border: none;
+        }
+        .btn-danger { background: #ff000033; border: 2px solid #ff0000; color: #ff6b6b; }
+        .btn-primary { background: linear-gradient(45deg, #ff00ff, #00ff41); color: #000; }
+        .btn-success { background: #00ff4120; border: 2px solid #00ff41; color: #00ff41; }
+        .btn-warning { background: #ffff0020; border: 2px solid #ffff00; color: #ffff00; }
+        .btn:hover { transform: scale(1.05); }
+        
+        .panel {
+            background: #1a0033; border: 2px solid #00ff41; border-radius: 20px;
+            padding: 25px; margin-bottom: 25px;
+        }
+        .panel-title { color: #00ff41; font-size: 22px; margin-bottom: 20px; }
+        
+        /* Custom API Form Styles */
+        .custom-api-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .custom-api-form input, .custom-api-form select {
+            padding: 12px 15px;
+            background: #0a0a0a;
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            color: #00ff41;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+        .custom-apis-list {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .custom-api-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #0a0a0a;
+            border: 1px solid #00ff41;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        .api-info {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-visible { background: #00ff4120; color: #00ff41; border: 1px solid #00ff41; }
+        .status-hidden { background: #ff000020; color: #ff6b6b; border: 1px solid #ff0000; }
+        
+        .toast {
+            position: fixed; bottom: 30px; right: 30px; background: #1a0033;
+            color: #00ff41; padding: 15px 30px; border-radius: 50px;
+            border: 2px solid #00ff41; box-shadow: 0 0 40px #00ff41;
+            z-index: 9999; animation: slideIn 0.3s;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+        .toggle-group input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #ff00ff;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ BRONX ADMIN PANEL</h1>
+            <div style="display: flex; gap: 15px;">
+                <button class="btn btn-success" onclick="refreshData()">🔄 REFRESH</button>
+                <button class="btn btn-danger" onclick="logout()">🚪 LOGOUT</button>
+            </div>
+        </div>
+        
+        <!-- ========== CUSTOM API MANAGER PANEL ========== -->
+        <div class="panel">
+            <div class="panel-title">
+                🔧 CUSTOM API MANAGER 
+                <small style="color: #ffff00; font-size: 14px; margin-left: 15px;">(10 Slots - Edit & Toggle Visibility)</small>
+            </div>
+            
+            <!-- API Form -->
+            <div class="custom-api-form">
+                <select id="apiSlotSelect" onchange="onSlotSelect()">
+                    <option value="">Select Slot (1-10)</option>
+                </select>
+                <input type="text" id="apiNameInput" placeholder="API Display Name">
+                <input type="text" id="apiEndpointInput" placeholder="Endpoint (e.g., myapi)">
+                <input type="text" id="apiParamInput" placeholder="Parameter (e.g., query)">
+                <input type="text" id="apiExampleInput" placeholder="Example Value">
+                <input type="text" id="apiDescInput" placeholder="Description">
+                <input type="text" id="apiRealUrlInput" placeholder="Real API URL (use {param})">
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="saveCustomAPI()">💾 Save API</button>
+                <button class="btn btn-success" onclick="loadAPIToSlot()">📂 Load to Form</button>
+                <div class="toggle-group">
+                    <input type="checkbox" id="apiVisibleCheck"> 
+                    <label for="apiVisibleCheck">👁️ Visible to Public</label>
+                </div>
+                <button class="btn btn-warning" onclick="toggleAPIVisibility()">🔄 Toggle Visibility</button>
+                <button class="btn btn-danger" onclick="clearForm()">🗑️ Clear Form</button>
+            </div>
+            
+            <!-- API List -->
+            <div class="custom-apis-list" id="customApisList">
+                <!-- Will be populated by JavaScript -->
+            </div>
+            
+            <div style="margin-top: 15px; padding: 10px; background: #0a0a0a; border-radius: 10px; color: #00ff41; font-size: 13px;">
+                💡 <strong>Tip:</strong> Changes save automatically. Use "Toggle Visibility" to show/hide APIs on public page.
+            </div>
+        </div>
+        
+        <!-- Key Generator Panel (Optional - Tum already rakho ya hatado) -->
+        <!-- ... tumhara key generator code yahan aa sakta hai ... -->
+        
+    </div>
+    
+    <div id="toastContainer"></div>
+    
+    <script>
+        // ========== CUSTOM API DATA ==========
+        let customAPIs = [
+            { id: 1, name: 'Number Info backup ✅', endpoint: 'bronx-api-bromx', param: 'num', example: '9876543210', desc: 'india Number Lookup', category: '🔧 Custom APIs', visible: true, realAPI: 'https://bronx-api-bromx.vercel.app/search?num={param}' },
+            { id: 2, name: 'Vehicle Details Api 🚕', endpoint: 'rc-details', param: 'ca_number', example: 'MH02FZ0555', desc: 'Vehicle RC Details', category: '🔧 Custom APIs', visible: true, realAPI: 'https://bronx-rc-api.vercel.app/?ca_number={param}' },
+            { id: 3, name: 'Adhar Detail api', endpoint: 'aadhar-details', param: 'aadhar', example: '393933081942', desc: 'Aadhar Number Lookup', category: '🔧 Custom APIs', visible: true, realAPI: 'https://bronx-adhar-api.vercel.app/aadhar={param}' },
+            { id: 4, name: '📧 Email Lookup API', endpoint: 'email-lookup', param: 'mail', example: 'user@gmail.com', desc: 'Email Information', category: '🔧 Custom APIs', visible: true, realAPI: 'https://bronx-mail-api.vercel.app/mail={param}' },
+            { id: 5, name: '📲 Telegram Number API', endpoint: 'telegram-num', param: 'id', example: '7530266953', desc: 'Telegram Number Lookup', category: '🔧 Custom APIs', visible: true, realAPI: 'http://45.91.248.51:3000/api/tgnum?id={param}' },
+            { id: 6, name: 'Custom API 6', endpoint: '', param: '', example: '', desc: '', category: '🔧 Custom APIs', visible: false, realAPI: '' },
+            { id: 7, name: 'Custom API 7', endpoint: '', param: '', example: '', desc: '', category: '🔧 Custom APIs', visible: false, realAPI: '' },
+            { id: 8, name: 'Custom API 8', endpoint: '', param: '', example: '', desc: '', category: '🔧 Custom APIs', visible: false, realAPI: '' },
+            { id: 9, name: 'Custom API 9', endpoint: '', param: '', example: '', desc: '', category: '🔧 Custom APIs', visible: false, realAPI: '' },
+            { id: 10, name: 'Custom API 10', endpoint: '', param: '', example: '', desc: '', category: '🔧 Custom APIs', visible: false, realAPI: '' }
+        ];
+        
+        let currentSlot = null;
+        
+        // ========== INITIALIZE ==========
+        function init() {
+            populateSlotSelect();
+            renderAPIList();
+        }
+        
+        function populateSlotSelect() {
+            const select = document.getElementById('apiSlotSelect');
+            select.innerHTML = '<option value="">Select Slot (1-10)</option>';
+            customAPIs.forEach((api, i) => {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Slot ${api.id} - ${api.name}`;
+                select.appendChild(option);
+            });
+        }
+        
+        function renderAPIList() {
+            const container = document.getElementById('customApisList');
+            container.innerHTML = customAPIs.map((api, i) => `
+                <div class="custom-api-item">
+                    <div class="api-info">
+                        <strong style="color: #ff00ff;">Slot ${api.id}</strong>
+                        <span style="color: #fff;">${api.name || '(Empty)'}</span>
+                        <code style="color: #00ff41;">/${api.endpoint || 'not-set'}</code>
+                        <span class="status-badge ${api.visible ? 'status-visible' : 'status-hidden'}">
+                            ${api.visible ? '👁️ Visible' : '🔒 Hidden'}
+                        </span>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-success" style="padding: 6px 12px;" onclick="editAPI(${i})">✏️ Edit</button>
+                        <button class="btn btn-danger" style="padding: 6px 12px;" onclick="clearAPI(${i})">🗑️ Clear</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // ========== SLOT SELECT ==========
+        function onSlotSelect() {
+            const select = document.getElementById('apiSlotSelect');
+            currentSlot = select.value === '' ? null : parseInt(select.value);
+        }
+        
+        // ========== LOAD API TO FORM ==========
+        function loadAPIToSlot() {
+            if (currentSlot === null) {
+                showToast('❌ Please select a slot first!', true);
+                return;
+            }
+            
+            const api = customAPIs[currentSlot];
+            document.getElementById('apiNameInput').value = api.name || '';
+            document.getElementById('apiEndpointInput').value = api.endpoint || '';
+            document.getElementById('apiParamInput').value = api.param || '';
+            document.getElementById('apiExampleInput').value = api.example || '';
+            document.getElementById('apiDescInput').value = api.desc || '';
+            document.getElementById('apiRealUrlInput').value = api.realAPI || '';
+            document.getElementById('apiVisibleCheck').checked = api.visible || false;
+        }
+        
+        // ========== SAVE API ==========
+        async function saveCustomAPI() {
+            if (currentSlot === null) {
+                showToast('❌ Please select a slot first!', true);
+                return;
+            }
+            
+            const name = document.getElementById('apiNameInput').value;
+            const endpoint = document.getElementById('apiEndpointInput').value;
+            
+            if (!name || !endpoint) {
+                showToast('❌ API Name and Endpoint are required!', true);
+                return;
+            }
+            
+            customAPIs[currentSlot] = {
+                ...customAPIs[currentSlot],
+                name: name,
+                endpoint: endpoint,
+                param: document.getElementById('apiParamInput').value,
+                example: document.getElementById('apiExampleInput').value,
+                desc: document.getElementById('apiDescInput').value,
+                realAPI: document.getElementById('apiRealUrlInput').value,
+                visible: document.getElementById('apiVisibleCheck').checked
+            };
+            
+            // Save to server
+            try {
+                const res = await fetch('/admin/custom-api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slot: currentSlot, api: customAPIs[currentSlot] })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ API Saved successfully!');
+                    populateSlotSelect();
+                    renderAPIList();
+                } else {
+                    showToast('❌ ' + data.error, true);
+                }
+            } catch (err) {
+                showToast('❌ Connection error', true);
+            }
+        }
+        
+        // ========== TOGGLE VISIBILITY ==========
+        async function toggleAPIVisibility() {
+            if (currentSlot === null) {
+                showToast('❌ Please select a slot first!', true);
+                return;
+            }
+            
+            customAPIs[currentSlot].visible = !customAPIs[currentSlot].visible;
+            document.getElementById('apiVisibleCheck').checked = customAPIs[currentSlot].visible;
+            
+            try {
+                const res = await fetch('/admin/custom-api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slot: currentSlot, api: customAPIs[currentSlot] })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ Visibility toggled!');
+                    renderAPIList();
+                }
+            } catch (err) {
+                showToast('❌ Connection error', true);
+            }
+        }
+        
+        // ========== EDIT API ==========
+        function editAPI(index) {
+            document.getElementById('apiSlotSelect').value = index;
+            currentSlot = index;
+            loadAPIToSlot();
+            document.querySelector('.panel').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // ========== CLEAR API ==========
+        async function clearAPI(index) {
+            if (!confirm('Clear this API slot?')) return;
+            
+            customAPIs[index] = {
+                ...customAPIs[index],
+                name: `Custom API ${index + 1}`,
+                endpoint: '',
+                param: '',
+                example: '',
+                desc: '',
+                realAPI: '',
+                visible: false
+            };
+            
+            try {
+                const res = await fetch('/admin/custom-api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slot: index, api: customAPIs[index] })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ API slot cleared!');
+                    populateSlotSelect();
+                    renderAPIList();
+                    if (currentSlot === index) clearForm();
+                }
+            } catch (err) {
+                showToast('❌ Connection error', true);
+            }
+        }
+        
+        // ========== CLEAR FORM ==========
+        function clearForm() {
+            document.getElementById('apiNameInput').value = '';
+            document.getElementById('apiEndpointInput').value = '';
+            document.getElementById('apiParamInput').value = '';
+            document.getElementById('apiExampleInput').value = '';
+            document.getElementById('apiDescInput').value = '';
+            document.getElementById('apiRealUrlInput').value = '';
+            document.getElementById('apiVisibleCheck').checked = false;
+        }
+        
+        // ========== REFRESH ==========
+        function refreshData() {
+            location.reload();
+        }
+        
+        // ========== LOGOUT ==========
+        function logout() {
+            localStorage.removeItem('bronx_admin_auth');
+            window.location.href = '/admin';
+        }
+        
+        // ========== TOAST ==========
+        function showToast(message, isError = false) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.color = isError ? '#ff6b6b' : '#00ff41';
+            toast.style.borderColor = isError ? '#ff0000' : '#00ff41';
+            toast.innerHTML = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // ========== CHECK AUTH ==========
+        if (localStorage.getItem('bronx_admin_auth') !== 'true') {
+            window.location.href = '/admin';
+        }
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
 // ========== ADMIN API ENDPOINTS ==========
 
 app.get('/admin/keys', (req, res) => {
